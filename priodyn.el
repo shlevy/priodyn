@@ -14,9 +14,16 @@
 ;; recency (projects one has more recently worked on have
 ;; higher priority), connectivity (projects connected to more
 ;; or more important issues in your knowledge management system
-;; are higher priority), etc. This enables integrating a larger,
+;; are higher priority), etc.  This enables integrating a larger,
 ;; more diverse array of projects than manual prioritization and
 ;; scheduling on its own, and encourages integration across projects.
+
+;; priodyn is built on top of 'org-roam'.  Projects are represented by
+;; org-roam files tagged with 'priodyn-project-tag'.  You can run 'priodyn'
+;; to see your project list, and call 'priodyn-manage-agenda' to have your
+;; org-agenda be built based off of 'priodyn's project list.
+
+;; Currently, priodyn orders projects by recency of modification.
 
 ;;; Code:
 
@@ -36,7 +43,7 @@
 (defcustom priodyn-extra-agenda-files nil
   "Extra files to be appended to the priodyn-generated agenda.
 
-See documentation for `org-agenda-files'."
+See documentation for variable `org-agenda-files'."
   :group 'priodyn
   :type '(repeat :tag "List of files and directories" file))
 
@@ -58,7 +65,7 @@ See documentation for `org-agenda-files'."
 		       (time-less-p m2 m1))))))
 
 (defun priodyn--set-agenda-files ()
-  "Set `org-agenda-files' from priodyn's project list.
+  "Set variable `org-agenda-files' from priodyn's project list.
 
 See also `priodyn-extra-agenda-files'."
   (let* ((projects (priodyn-projects))
