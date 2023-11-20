@@ -33,28 +33,64 @@
   :group 'priodyn
   :type '(string))
 
+(defcustom priodyn-extra-agenda-files nil
+  "Extra files to be appended to the priodyn-generated agenda.
+
+See documentation for `org-agenda-files'."
+  :group 'priodyn
+  :type '(repeat :tag "List of files and directories" file))
+
+(defun priodyn-projects ()
+  "Calculate the priodyn project list."
+  (let ((projects (org-roam-db-query
+		   [:select [nodes:title nodes:file files:mtime]
+		    :from tags
+		    :left-join nodes
+		    :on (= tags:node-id nodes:id)
+		    :left-join files
+		    :on (= nodes:file files:file)
+		    :where (= tag $s1)
+		    ]
+		   priodyn-project-tag)))
+    (sort projects (lambda (e1 e2)
+		     (let ((m1 (nth 2 e1))
+			   (m2 (nth 2 e2)))
+		       (time-less-p m2 m1))))))
+
+(defun priodyn--set-agenda-files ()
+  "Set `org-agenda-files' from priodyn's project list.
+
+See also `priodyn-extra-agenda-files'."
+  (let* ((projects (priodyn-projects))
+	 (project-files (mapcar (lambda (proj) (pcase-let ((`(,title ,file) proj)) file)) projects)))
+    (customize-set-variable 'org-agenda-files (append project-files priodyn-extra-agenda-files))))
+
+;;;###autoload
+(defun priodyn-manage-agenda ()
+  "Use priodyn's project list to manage the agenda.
+
+The agenda is populated from priodyn projects in priority order.
+
+See also `priodyn-extra-agenda-files'."
+  (interactive)
+  (add-hook 'org-agenda-mode-hook 'priodyn--set-agenda-files))
+
+(defun priodyn-unmanage-agenda ()
+  "Stop using priodyn to manage the agenda.
+
+You will have to manually restore the agenda list if needed."
+  (interactive)
+  (remove-hook 'agenda-mode-hook 'priodyn--set-agenda-files))
+
 ;;;###autoload
 (defun priodyn ()
-  "Load the priodyn project list."
+  "Display the priodyn project buffer."
   (interactive)
-  (let* ((projects (org-roam-db-query
-		    [:select [nodes:title nodes:file files:mtime]
-		     :from tags
-		     :left-join nodes
-		     :on (= tags:node-id nodes:id)
-		     :left-join files
-		     :on (= nodes:file files:file)
-		     :where (= tag $s1)
-		     ]
-		    priodyn-project-tag))
-	 (sorted-projects (sort projects (lambda (e1 e2)
-					   (let ((m1 (nth 2 e1))
-						 (m2 (nth 2 e2)))
-					     (time-less-p m2 m1))))))
+  (let ((projects (priodyn-projects)))
     (with-current-buffer
 	(get-buffer-create "*priodyn*")
       (erase-buffer)
-      (dolist (proj sorted-projects)
+      (dolist (proj projects)
 	(pcase-let ((`(,title ,file) proj))
 	  (insert-button title
 			 'action (lambda (x) (find-file-other-window (button-get x 'file)))
